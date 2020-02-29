@@ -7,7 +7,7 @@ MAXIMUM_DISTANCE = 1000
 # Class used to store aditional information for the brewery such as its coordinates and the beer name
 class BeerAndCords:
 
-    def __init__(self, beer, latitude="", longitude=""):
+    def __init__(self, beer=[], latitude="", longitude=""):
         self.beer = beer
         self.latitude = latitude
         self.longitude = longitude
@@ -19,7 +19,7 @@ class BeerAndCords:
 # Brewery class used to store brewery specific information extends BeerAndCords
 class Brewery(BeerAndCords):
 
-    def __init__(self, name="", brewery_id="", beer="", latitude="", longitude=""):
+    def __init__(self, name="", brewery_id="", beer=[], latitude="", longitude=""):
         super().__init__(beer, latitude, longitude)
         self.name = name
         self.brewery_id = brewery_id
@@ -34,6 +34,36 @@ class Connection:
     def __init__(self, brewery_id, length):
         self.brewery_id = brewery_id
         self.length = length
+
+"""
+Stores search results
+"""
+class SearchResults:
+
+    def __init__(self, factories=[], beer=[], distance=[0]):
+        self.factories = factories
+        self.beer = beer
+        self.distance = distance
+
+    def display_results(self):
+
+        # Display total number of factories found
+        print("Visited " + str(len(self.factories)) + " beer factories")
+
+        # Display all factories that were visited
+        for i in range(len(self.factories)):
+            print("[" + self.factories[i].brewery_id + "] " + self.factories[i].name + " " + 
+                str(self.factories[i].latitude) +  " " + str(self.factories[i].longitude) + " distance: " + str(self.distance[i]) + " km")
+
+        # Display the total amount traveled
+        print("Total distance: " + str(sum(self.distance)) + "\n")
+
+        # Display total beer types collected
+        print("Collected " + str(len(self.beer)) + " beer types")
+
+        # Display all beer types
+        for drink in self.beer:
+            print(drink)
 
 # Stores the brewery graph
 class Graph:
@@ -81,11 +111,15 @@ class Graph:
                 if (len(line) >= 3):
 
                     """
-                    Create a new BeerAndCoords object
+                    Create a new BeerAndCoords object if it donesn't exist
                     Store beer name in it 
                     Hash it by the brewery id
                     """
-                    beer_and_coords[line[1]] = BeerAndCords(line[2])
+                    if line[1] in beer_and_coords:
+                        beer_and_coords[line[1]].beer.append(line[2])
+                    else:
+                        beer_and_coords[line[1]] = BeerAndCords([line[2]])
+
                 line = beer_data.readline()
 
         # Read geocodes.csv file
@@ -174,7 +208,9 @@ class Graph:
             self.connections[node.brewery_id] = connections
 
     def store_graph(self):
+
         brewery_ids = []
+
         for node in self.nodes:
 
             # Store brewery id
@@ -196,7 +232,7 @@ class Graph:
         # Reads .csv files containing information and generates nodes
         self.generate_nodes()
 
-        # Generates nodes from Brewery objects
+        # Generates graph from Brewery objects
         self.generate_graph()
 
         # Stores generated graph into the database
@@ -210,23 +246,117 @@ class Graph:
         # stores connections
         connections = []
 
-        for node in self.nodes:
+        nodes = self.database('db').contains(list)[0]
 
+        for brewery_id in nodes:
+            node = self.database(brewery_id).is_node(list)[0]
             # Calculate distance between two nodes
             distance = self.calculate_distance(node.latitude, node.longitude,
                     node_to_insert.latitude, node_to_insert.longitude)
-
+ 
             # If distance is equal or less to the maximum distance, store the connection
             if (distance <= MAXIMUM_DISTANCE):
                 connections.append(Connection(node.brewery_id, distance))
-
+        
         self.database.store_relation('home', 'is_node', node_to_insert)
         self.database.store_relation('home', 'connects', connections)
 
-        self.commit()
+        self.database.commit()
 
+    def remove_home(self):
+
+        self.database.delete_relation('home', 'is_node')
+        self.database.delete_relation('home', 'connects')
+
+        self.database.commit()
+
+    def find_min_neighbour(self, neighbours, visited):
+
+        min_distance = MAXIMUM_DISTANCE+1
+        min_neighbour = -1
+
+        for neighbour in neighbours:
+            if (neighbour.length < min_distance and neighbour.brewery_id not in visited):
+                min_distance = neighbour.length
+                min_neighbour = neighbour
+
+        return min_neighbour
+
+    def check_distance_to_home(self, node_to_check):
+        home_node = self.database('home').is_node(list)[0]
+        return self.calculate_distance(node_to_check.latitude, node_to_check.longitude, home_node.latitude, home_node.longitude)
+
+    def nearest_neighbour(self, node_id, distance, visited, result):
+        visited.append(node_id)
+
+        neighbours = self.database(node_id).connects(list)[0]
+        
+        if (len(neighbours) == 0):
+            return collected
+
+        min_neighbour = self.find_min_neighbour(neighbours, visited)
+
+        if (min_neighbour == -1):
+            return collected
+
+        distance_neighbour = min_neighbour.length
+
+        # Retrieve Brewery object from the database
+        min_neighbour = self.database(min_neighbour.brewery_id).is_node(list)[0]
+
+        if (distance + distance_neighbour + self.check_distance_to_home(min_neighbour) <= MAXIMUM_DISTANCE * 2):
+
+            # Update distance
+            distance += distance_neighbour
+
+            # Save data into results
+            result.distance.append(distance_neighbour)
+            result.factories.append(min_neighbour)
+            result.beer = result.beer + min_neighbour.beer
+
+            result = self.nearest_neighbour(min_neighbour.brewery_id, distance, visited, result)
+        
+        return result
+
+    
+    def find_path(self, latitude, longitude):
+
+        # Crete home node and connect it with other nodes
+        self.insert_home(latitude, longitude)
+
+        # Retrieve home node
+        home_node = self.database('home').is_node(list)[0]
+
+        # Initilize the SearchResults object to store search results
+        result = SearchResults()
+
+        # Append home node to the begining of the results
+        result.factories.append(home_node)
+        
+        # Find path using nearest neighbour algorithm
+        result = self.nearest_neighbour('home', 0, [], result)
+
+        # Retrieve last brewery
+        last_node = result.factories[-1]
+
+        # Append home node to the back
+        result.factories.append(home_node)
+
+        # Calculate the distance between home and the last node and append it
+        result.distance.append(self.calculate_distance(latitude, longitude, last_node.latitude, last_node.longitude))
+
+        # Remove home node and it's connections
+        self.remove_home()
+
+        return result
 
 if __name__ == '__main__':
     graph = Graph('beer.db')
+
+    result = graph.find_path(51.355468, 11.100790)
+
+    # Display results
+    result.display_results()
+
     # graph.generate_and_store_graph()
 
