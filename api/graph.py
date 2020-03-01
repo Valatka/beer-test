@@ -1,4 +1,5 @@
 import math
+import sys
 
 from graphdb import GraphDB
 
@@ -11,7 +12,7 @@ from search_results import SearchResults
 class Graph:
 
     def __init__(self, database_directory, nodes=[], connections={}, precalculated_distance={}, maximum_distance=1000):
-        self.database = GraphDB(database_directory, autocommit=True)
+        self.database = GraphDB(database_directory, autocommit=False)
         self.nodes = nodes
         self.connections = connections
         self.precalculated_distance = precalculated_distance
@@ -442,5 +443,11 @@ class Graph:
         return result
 
 if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
+    if (sys.argv[1] == '-r'):
+        GraphDB('beer.db')._destroy()
+        graph = Graph('beer.db')
+        graph.generate_and_store_graph()
+    else:
+        import doctest
+        doctest.testmod()
+    

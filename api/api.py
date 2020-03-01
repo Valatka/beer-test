@@ -1,4 +1,4 @@
-from bottle import route, run
+from bottle import route, run, default_app
 
 from connection import Connection
 from brewery import Brewery
@@ -19,4 +19,7 @@ def generate_path(latitude, longitude):
 
     return result.return_in_json()
 
-run(host='localhost', port=5000, debug=False)
+if __name__ == '__main__':
+	run(host='localhost', port=4000, debug=False)
+else:
+	app = application = default_app()

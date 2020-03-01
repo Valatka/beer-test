@@ -1,0 +1,17 @@
+version: "3.7"
+
+services:
+
+  bottle:
+    build: ./api
+    container_name: bottle
+    restart: always
+    expose:
+      - 8080
+
+  nginx:
+    build: ./
+    container_name: nginx
+    restart: always
+    ports:
+      - "80:80"
