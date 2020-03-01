@@ -1,0 +1,32 @@
+html {
+    height: 100%;
+}
+
+body {
+    height: 100%;
+}
+
+#root {
+    height: 100%;
+}
+
+#title {
+    color: white;
+    font-size: 7rem;
+}
+
+#wrapper {
+    position: relative;
+    top: 15%;
+}
+
+.container-fluid,
+.row {
+    background-color: orange;
+}
+
+.btn-outline-light {
+    border-width: 2px !important;
+    font-weight: 500 !important;
+}
+
