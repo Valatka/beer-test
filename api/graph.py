@@ -10,14 +10,36 @@ from search_results import SearchResults
 # Stores the brewery graph
 class Graph:
 
-    def __init__(self, database_directory, nodes=[], connections={}, precaulculated_distance={}, maximum_distance=1000):
-        self.database = GraphDB(database_directory, autocommit=False)
+    def __init__(self, database_directory, nodes=[], connections={}, precalculated_distance={}, maximum_distance=1000):
+        self.database = GraphDB(database_directory, autocommit=True)
         self.nodes = nodes
         self.connections = connections
-        self.precaulculated_distance = precaulculated_distance
+        self.precalculated_distance = precalculated_distance
         self.maximum_distance = maximum_distance
 
-    def calculate_distance(self, lat1, lon1, lat2, lon2): 
+    def reset(self):
+
+        """
+        Resets graph object to default value
+
+        >>> graph = Graph('', nodes=[0], connections={'test' : ''}, precalculated_distance={ 'test' : 0 }, maximum_distance=100)
+        >>> graph.reset()
+        >>> graph.nodes == [] and graph.connections == {} and graph.precalculated_distance == {} and graph.maximum_distance == 1000
+        True
+        """
+
+        self.nodes = []
+        self.connections = {}
+        self.precalculated_distance = {}
+        self.maximum_distance = 1000
+
+    def calculate_distance(self, lat1, lon1, lat2, lon2):
+        """
+        >>> Graph.calculate_distance(Graph, 51, 12, 58, 3)
+        969.648
+        >>> Graph.calculate_distance(Graph, 34, 2, 31, 10)
+        820.731
+        """
       
         # Calculate distance between latitudes and longitutdes
         latitude_distance = math.radians(lat2 - lat1)
@@ -107,7 +129,23 @@ class Graph:
         self.nodes = breweries
 
     def generate_graph(self):
+        """
+        Generates graph from nodes
 
+        >>> graph = Graph('')
+        >>> graph.reset()
+        >>> graph.nodes = [Brewery(brewery_id='1', latitude=34, longitude=2),
+        ...     Brewery(brewery_id='2', latitude=34, longitude=14),
+        ...     Brewery(brewery_id='3', latitude=40, longitude=10)]
+        >>> graph.generate_graph()
+        >>> for key in graph.connections:
+        ...     for connection in graph.connections[key]:
+        ...         print(connection.brewery_id)
+        3
+        3
+        1
+        2
+        """
         # Loop through all nodes
         for primary in range(len(self.nodes)):
 
@@ -131,8 +169,8 @@ class Graph:
 
                 final_key = str(min(key, key_temp))+'|'+str(max(key, key_temp))
 
-                if (final_key in self.precaulculated_distance):
-                    distance = self.precaulculated_distance[final_key]
+                if (final_key in self.precalculated_distance):
+                    distance = self.precalculated_distance[final_key]
 
                 else:
 
@@ -141,7 +179,7 @@ class Graph:
                             temp_node.latitude, temp_node.longitude)
 
                     # Store the value
-                    self.precaulculated_distance[final_key] = distance
+                    self.precalculated_distance[final_key] = distance
 
                 # If distance is equal or less to the maximum distance, store the connection
                 if (distance <= self.maximum_distance):
@@ -151,6 +189,32 @@ class Graph:
             self.connections[node.brewery_id] = connections
 
     def store_graph(self):
+        """
+        Stores graph in the database
+
+        >>> graph = Graph('test.db')
+        >>> graph.reset()
+        >>> graph.nodes = [Brewery(brewery_id='1', latitude=34, longitude=2),
+        ...     Brewery(brewery_id='2', latitude=34, longitude=14),
+        ...     Brewery(brewery_id='3', latitude=40, longitude=10)]
+        >>> graph.generate_graph()
+        >>> graph.store_graph()
+        >>> graph.database('db').contains(list)[0]
+        ['1', '2', '3']
+        >>> for i in range(3):
+        ...     print(len(graph.database(''+str(i+1)).is_node(list)))
+        1
+        1
+        1
+        >>> for i in range(3):
+        ...     for element in graph.database(''+str(i+1)).connects(list)[0]:
+        ...         print(element.brewery_id)
+        3
+        3
+        1
+        2
+        >>> graph.database._destroy()
+        """
 
         brewery_ids = []
 
@@ -183,15 +247,31 @@ class Graph:
 
     def insert_home(self, latitude, longitude):
 
+        """
+        Create home node and insert it into the database
+        >>> graph = Graph('test.db')
+        >>> graph.reset()
+        >>> graph.insert_home(51, 53)
+        >>> graph.database('home').is_node(list)[0].latitude
+        51
+        >>> graph.database._destroy()
+        """
+
         # Creates Brewery object for home
         node_to_insert = Brewery(latitude=latitude, longitude=longitude, brewery_id="home")
 
         # stores connections
         connections = []
 
-        nodes = self.database('db').contains(list)[0]
+        nodes = self.database('db').contains(list)
 
+        if (len(nodes) == 0):
+            nodes = []
+        else:
+            nodes = nodes[0]
+        
         for brewery_id in nodes:
+            
             node = self.database(brewery_id).is_node(list)[0]
 
             # Calculate distance between two nodes
@@ -209,33 +289,93 @@ class Graph:
 
     def remove_home(self):
 
+        """
+        Removes home node
+
+        >>> graph = Graph('test.db')
+        >>> graph.insert_home(51, 14)
+        >>> graph.remove_home()
+        >>> len(graph.database('home').is_node(list))
+        0
+        >>> graph.database._destroy()
+        """
+
         self.database.delete_item('home')
 
         self.database.commit()
 
     def find_min_neighbour(self, neighbours, visited):
 
+        """
+        Find the closest neighbour that wasn't already visited
+
+        >>> graph = Graph('')
+        >>> graph.reset()
+        >>> min_neighbour = graph.find_min_neighbour([Connection('2', 3), Connection('123', 7.89), Connection('3', 0.1)], ['3', '14'])
+        >>> min_neighbour.brewery_id
+        '2'
+        """
+
         min_distance = self.maximum_distance+1
         min_neighbour = -1
 
         for neighbour in neighbours:
+
+            # Check if neighbour is closer than the previous ones and is not already visited
             if (neighbour.length < min_distance and neighbour.brewery_id not in visited):
+
+                #Store it
                 min_distance = neighbour.length
                 min_neighbour = neighbour
 
         return min_neighbour
 
     def check_distance_to_home(self, node_to_check):
+
+        """
+        Find the distance between the home node and the specified node
+
+        >>> graph = Graph('test.db')
+        >>> graph.reset()
+        >>> graph.insert_home(51, 14)
+        >>> node_to_test = Brewery(latitude=41, longitude=7)
+        >>> graph.check_distance_to_home(node_to_test)
+        1235.096
+        >>> graph.database._destroy()
+        """
+
+        # Retrieve home node from the database
         home_node = self.database('home').is_node(list)[0]
+
         return self.calculate_distance(node_to_check.latitude, node_to_check.longitude, home_node.latitude, home_node.longitude)
 
     def nearest_neighbour(self, node_id, distance, visited, result):
+
+        """
+        Generates the path using the neares neighboar algorithm
+
+
+        >>> graph = Graph('test.db')
+        >>> graph.reset()
+        >>> graph.nodes = [Brewery(brewery_id='1', latitude=34, longitude=2),
+        ...     Brewery(brewery_id='2', latitude=34, longitude=14),
+        ...     Brewery(brewery_id='3', latitude=31, longitude=10)]
+        >>> graph.generate_graph()
+        >>> graph.store_graph()
+        >>> graph.insert_home(35, 2)
+        >>> result = SearchResults()
+        >>> result = graph.nearest_neighbour('home', 0, [], result)
+        >>> result.return_in_json()
+        '{"breweries": [{"name": "", "id": "1", "lat": 34, "long": 2}, {"name": "", "id": "3", "lat": 31, "long": 10}], "beer": [], "distance": [0, 111.195, 820.731]}'
+        >>> graph.database._destroy()
+        """
 
         # Add node to the visited list
         visited.append(node_id)
 
         # Get neightbours
         neighbours = self.database(node_id).connects(list)[0]
+
         
         # If no neighbours, return
         if (len(neighbours) == 0):
@@ -258,8 +398,6 @@ class Graph:
             # Update distance
             distance += distance_neighbour
 
-            print(distance)
-
             # Save data into results
             result.distance.append(distance_neighbour)
             result.factories.append(min_neighbour)
@@ -271,7 +409,7 @@ class Graph:
     
     def find_path(self, latitude, longitude):
 
-        # Crete home node and connect it with other nodes
+        # Create home node and connect it with other nodes
         self.insert_home(latitude, longitude)
 
         # Retrieve home node
@@ -303,3 +441,6 @@ class Graph:
 
         return result
 
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

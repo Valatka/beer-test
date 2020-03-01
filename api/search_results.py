@@ -11,11 +11,33 @@ class SearchResults:
         self.distance = distance
 
     def reset(self):
+
+        """
+        Resets object to default values
+        
+        >>> result = SearchResults([Brewery('test_1', '1', ['test_1_beer'], 51, 14), Brewery('test_2', '2', ['test_2_beer'], 43, 5)], 
+        ... ['test_1_beer', 'test_2_beer'], 
+        ... [12, 34])
+        >>> result.reset()
+        >>> result.factories == [] and result.beer == [] and result.distance == [0]
+        True
+
+        """
         self.factories = []
         self.beer = []
-        self.distance =[0]
+        self.distance = [0]
 
     def return_in_json(self):
+
+        """
+        Returns data in json format
+
+        >>> result = SearchResults([Brewery('test_1', '1', ['test_1_beer'], 51, 14), Brewery('test_2', '2', ['test_2_beer'], 43, 5)], 
+        ... ['test_1_beer', 'test_2_beer'], 
+        ... [12, 34])
+        >>> result.return_in_json()
+        '{"breweries": [{"name": "test_1", "id": "1", "lat": 51, "long": 14}, {"name": "test_2", "id": "2", "lat": 43, "long": 5}], "beer": ["test_1_beer", "test_2_beer"], "distance": [12, 34]}'
+        """
 
         results = {'breweries' : [], 'beer' : self.beer, 'distance' : self.distance}
 
@@ -49,3 +71,8 @@ class SearchResults:
         # Display all beer types
         for drink in self.beer:
             print(drink)
+
+if __name__ == '__main__':
+    import doctest
+    from brewery import Brewery
+    doctest.testmod()
