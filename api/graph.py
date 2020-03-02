@@ -11,13 +11,13 @@ from search_results import SearchResults
 # Stores the brewery graph
 class Graph:
 
-    def __init__(self, database_directory, nodes=[], connections={}, precalculated_distance={}, maximum_distance=1000):
+    def __init__(self, database_directory, nodes=[], connections={}, precalculated_distance={}, maximum_distance=1000, home_id=""):
         self.database = GraphDB(database_directory, autocommit=False)
         self.nodes = nodes
         self.connections = connections
         self.precalculated_distance = precalculated_distance
         self.maximum_distance = maximum_distance
-
+        self.home_id = home_id
     def reset(self):
 
         """
@@ -250,10 +250,10 @@ class Graph:
 
         """
         Create home node and insert it into the database
-        >>> graph = Graph('test.db')
+        >>> graph = Graph('test.db', home_id='home')
         >>> graph.reset()
         >>> graph.insert_home(51, 53)
-        >>> graph.database('home').is_node(list)[0].latitude
+        >>> graph.database(graph.home_id).is_node(list)[0].latitude
         51
         >>> graph.database._destroy()
         """
@@ -283,8 +283,8 @@ class Graph:
             if (distance <= self.maximum_distance):
                 connections.append(Connection(node.brewery_id, distance))
         
-        self.database.store_relation('home', 'is_node', node_to_insert)
-        self.database.store_relation('home', 'connects', connections)
+        self.database.store_relation(self.home_id, 'is_node', node_to_insert)
+        self.database.store_relation(self.home_id, 'connects', connections)
 
         self.database.commit()
 
@@ -293,15 +293,15 @@ class Graph:
         """
         Removes home node
 
-        >>> graph = Graph('test.db')
+        >>> graph = Graph('test.db', home_id='home')
         >>> graph.insert_home(51, 14)
         >>> graph.remove_home()
-        >>> len(graph.database('home').is_node(list))
+        >>> len(graph.database(graph.home_id).is_node(list))
         0
         >>> graph.database._destroy()
         """
 
-        self.database.delete_item('home')
+        self.database.delete_item(self.home_id)
 
         self.database.commit()
 
@@ -346,7 +346,7 @@ class Graph:
         """
 
         # Retrieve home node from the database
-        home_node = self.database('home').is_node(list)[0]
+        home_node = self.database(self.home_id).is_node(list)[0]
 
         return self.calculate_distance(node_to_check.latitude, node_to_check.longitude, home_node.latitude, home_node.longitude)
 
@@ -356,7 +356,7 @@ class Graph:
         Generates the path using the neares neighboar algorithm
 
 
-        >>> graph = Graph('test.db')
+        >>> graph = Graph('test.db', home_id='home')
         >>> graph.reset()
         >>> graph.nodes = [Brewery(brewery_id='1', latitude=34, longitude=2),
         ...     Brewery(brewery_id='2', latitude=34, longitude=14),
@@ -365,7 +365,7 @@ class Graph:
         >>> graph.store_graph()
         >>> graph.insert_home(35, 2)
         >>> result = SearchResults()
-        >>> result = graph.nearest_neighbour('home', 0, [], result)
+        >>> result = graph.nearest_neighbour(graph.home_id, 0, [], result)
         >>> result.return_in_json()
         '{"breweries": [{"name": "", "id": "1", "lat": 34, "long": 2}, {"name": "", "id": "3", "lat": 31, "long": 10}], "beer": [], "distance": [0, 111.195, 820.731]}'
         >>> graph.database._destroy()
@@ -414,7 +414,7 @@ class Graph:
         self.insert_home(latitude, longitude)
 
         # Retrieve home node
-        home_node = self.database('home').is_node(list)[0]
+        home_node = self.database(self.home_id).is_node(list)[0]
 
         # Initilize the SearchResults object to store search results
         result = SearchResults()
@@ -426,7 +426,7 @@ class Graph:
         result.factories.append(home_node)
         
         # Find path using nearest neighbour algorithm
-        result = self.nearest_neighbour('home', 0, [], result)
+        result = self.nearest_neighbour(self.home_id, 0, [], result)
 
         # Retrieve last brewery
         last_node = result.factories[-1]
@@ -443,7 +443,7 @@ class Graph:
         return result
 
 if __name__ == '__main__':
-    if (sys.argv[1] == '-r'):
+    if (len(sys.argv) > 1 and sys.argv[1] == '-r'):
         GraphDB('beer.db')._destroy()
         graph = Graph('beer.db')
         graph.generate_and_store_graph()
