@@ -13,13 +13,14 @@ from search_results import SearchResults
 # Stores the brewery graph
 class Graph:
 
-    def __init__(self, database_directory, nodes=[], connections={}, precalculated_distance={}, maximum_distance=1000, home_id=""):
+    def __init__(self, database_directory, nodes=[], connections={}, precalculated_distance={}, maximum_distance=1000, home_id="", weight=10):
         self.database = GraphDB(database_directory, autocommit=False)
         self.nodes = nodes
         self.connections = connections
         self.precalculated_distance = precalculated_distance
         self.maximum_distance = maximum_distance
         self.home_id = home_id
+        self.weight = weight
 
     def reset(self):
 
@@ -317,8 +318,10 @@ class Graph:
 
         for neighbour in neighbours:
 
+            neighbour_node = self.database(neighbour.brewery_id).is_node(list)[0]
+
             # Check if neighbour is closer than the previous ones and is not already visited
-            if (neighbour.length < min_distance and neighbour.brewery_id not in visited):
+            if (neighbour.length - len(neighbour_node.beer) * self.weight < min_distance and neighbour.brewery_id not in visited):
 
                 #Store it
                 min_distance = neighbour.length
