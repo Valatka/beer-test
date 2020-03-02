@@ -22,7 +22,7 @@ def generate_path(latitude, longitude):
     graph = Graph('beer.db', home_id=unique_id)
 
     # find path
-    result = graph.find_path(latitude, longitude)
+    result = graph.genetic_near_neighbour(20, latitude, longitude)
 
     # return result in json
     return result.return_in_json()

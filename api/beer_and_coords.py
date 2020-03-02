@@ -4,7 +4,10 @@ import copy
 class BeerAndCoords:
 
     def __init__(self, beer=[], latitude="", longitude=""):
+
+        # Creates the deep copy of the beer array
         self.beer = copy.deepcopy(beer)
+        
         self.latitude = latitude
         self.longitude = longitude
 

@@ -2,6 +2,7 @@ import math
 import sys
 import copy
 import csv
+import random
 
 from graphdb import GraphDB
 
@@ -41,6 +42,8 @@ class Graph:
     def calculate_distance(self, lat1, lon1, lat2, lon2):
 
         """
+        Calculates the distance beween two coordinates
+
         >>> Graph.calculate_distance(Graph, 51, 12, 58, 3)
         969.648
         >>> Graph.calculate_distance(Graph, 34, 2, 31, 10)
@@ -68,6 +71,9 @@ class Graph:
         return round(r * c, 3)
 
     def generate_nodes(self):
+        """
+        Parses input files and generates nodes for the graph
+        """
 
         beer_and_coords = {}
         breweries = []
@@ -77,13 +83,10 @@ class Graph:
             csv_reader = csv.reader(coord_data, delimiter=',')
             for row in csv_reader:
 
-                """
-                Check if no data is missing 
-                Check BeerAndCoords object is hashed in the beer_and_coords dictionary by brewery id
-                """
+                #Check if no data is missing 
                 if (len(row) >= 4):
 
-                    # Select BeerAndCoords object by brewery id and set the cordinates
+                    # Create new BeerAndCoords object and hash it using brewery id as the key
                     beer_and_coords[row[1]] = BeerAndCoords(latitude=row[2], longitude=row[3])
 
         # Read beers.csv file
@@ -94,12 +97,10 @@ class Graph:
                 # Check if no data is missing
                 if (len(row) >= 3):
 
-                    """
-                    Create a new BeerAndCoords object if it doesn't exist
-                    Store beer name in it 
-                    Hash it by the brewery id
-                    """
+                    # Check if the beer is in the beer_and_coords array
                     if row[1] in beer_and_coords:
+
+                        # Append the beer to the beer_and_coords' beer array by the brewery id
                         beer_and_coords[row[1]].beer.append(row[2])
 
         # Read breweries.csv file
@@ -110,7 +111,7 @@ class Graph:
                 """
                 Check if no data is missing
                 Check BeerAndCoords object is hashed in the beer_and_coords dictionary by brewery id
-                Latitude is set
+                Check if latitude is set
                 """
                 if (len(row) >= 2 and row[0] in beer_and_coords and beer_and_coords[row[0]].latitude != ""):
 
@@ -320,7 +321,7 @@ class Graph:
 
             neighbour_node = self.database(neighbour.brewery_id).is_node(list)[0]
 
-            # Check if neighbour is closer than the previous ones and is not already visited
+            # Check if neighbour is closer than the previous ones and is not already visited and apply the weight
             if (neighbour.length - len(neighbour_node.beer) * self.weight < min_distance and neighbour.brewery_id not in visited):
 
                 #Store it
@@ -349,14 +350,28 @@ class Graph:
         return self.calculate_distance(node_to_check.latitude, node_to_check.longitude, home_node.latitude, home_node.longitude)
 
     def find_max_result(self, results):
-        maximum_distance = 0
+        """
+        Find the maximum number of beers collected
+        """
+
+        # sets initial values
+        maximum_beer = 0
         max_result = 0
 
+        # repeats for the length of results
         for i in range(len(results)):
+
+            # finds out the amount of beer collected
+            amount_of_beer = len(results[i].beer)
+
+            # gets the sum of all distances
             distance_sum = sum(results[i].distance)
             
-            if (distance_sum <= self.maximum_distance * 2 and distance_sum > maximum_distance):
-                maximum_distance = distance_sum
+            # if distance sum is less than the fuel of the aircraft and the number of beer collected is more then the previous maximum
+            if (distance_sum <= self.maximum_distance * 2 and amount_of_beer > maximum_beer):
+
+                # updates the maximum number of beer collected and the maximum result
+                maximum_beer = amount_of_beer
                 max_result = i
 
         return results[max_result]
@@ -458,6 +473,62 @@ class Graph:
         self.remove_home()
 
         return result
+
+    def genetic_near_neighbour(self, number_of_runs, latitude, longitude):
+
+        """
+        Runs genetic algorithm for nearest neigbour algorithm
+        """
+
+        # Creates SearchResults object to store the final result
+        final_result = SearchResults()
+        final_result.reset()
+
+        # Sets the initial values
+        max_number_of_beer = 0
+        org_weight = 10
+        new_weight = 10
+
+        # Runs the genetic algorithm number_or_runs times
+        for i in range(number_of_runs):
+
+            # sets the weight to the mutated one
+            self.weight = new_weight
+
+            # Runs the neares neighbour algorithm with a mutated weight
+            temp_result = self.find_path(latitude, longitude)
+
+            # Checks if more beers were found than previous maximum
+            if (len(temp_result.beer) > max_number_of_beer):
+                
+                # sets the maximum number of beer to the new maximum
+                max_number_of_beer = len(temp_result.beer)
+
+                # sets the orginal best weight to the new weight
+                org_weight = new_weight
+
+                # Updates the final result
+                final_result = temp_result
+            else:
+
+                # resets the weith
+                new_weight = org_weight
+
+            # Decides if to add or subtract the mutation
+            is_negative = random.randint(0, 1)
+
+            if (is_negative == 1):
+
+                # Generates mutation and substrcts it
+                new_weight -= random.random() * 10
+            else:
+
+                # Generates mutation and adds it
+                new_weight += random.random() * 10
+
+
+        return final_result
+
 
 if __name__ == '__main__':
     if (len(sys.argv) > 1 and sys.argv[1] == '-r'):
