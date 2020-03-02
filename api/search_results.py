@@ -5,7 +5,7 @@ Stores search results
 """
 class SearchResults:
 
-    def __init__(self, factories=[], beer=[], distance=[0]):
+    def __init__(self, factories=[], beer=set(), distance=[0]):
         self.factories = factories
         self.beer = beer
         self.distance = distance
@@ -24,7 +24,7 @@ class SearchResults:
 
         """
         self.factories = []
-        self.beer = []
+        self.beer = set()
         self.distance = [0]
 
     def return_in_json(self):
@@ -39,7 +39,7 @@ class SearchResults:
         '{"breweries": [{"name": "test_1", "id": "1", "lat": 51, "long": 14}, {"name": "test_2", "id": "2", "lat": 43, "long": 5}], "beer": ["test_1_beer", "test_2_beer"], "distance": [12, 34]}'
         """
 
-        results = {'breweries' : [], 'beer' : self.beer, 'distance' : self.distance}
+        results = {'breweries' : [], 'beer' : list(self.beer), 'distance' : self.distance}
 
         for factory in self.factories:
 

@@ -22,12 +22,13 @@ class App extends React.Component {
             breweries : ['Enter valid coordinates'],
             lat : React.createRef(),
             long: React.createRef(),
+            numberOfRuns : React.createRef(),
             distance : []
         };
     }
 
     findPath() {
-        fetch(`/api/find-path/${ this.state.lat.current.value }/${ this.state.long.current.value }`)
+        fetch(`/api/find-path/${ this.state.lat.current.value }/${ this.state.long.current.value }/${ this.state.numberOfRuns.current.value }`)
             .then(res => res.json())
             .then(
                 (result) => {
@@ -79,6 +80,18 @@ class App extends React.Component {
                                       className="mr-4"
 
                                       ref={ this.state.long }
+                                    />
+                                </InputGroup>
+                            
+                        </Col>
+                        <Col className="mb-3" md={3}>
+                                
+                                <InputGroup>
+                                    <FormControl
+                                      placeholder="number of runs"
+                                      className="mr-4"
+
+                                      ref={ this.state.numberOfRuns }
                                     />
                                 </InputGroup>
                             

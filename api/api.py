@@ -8,8 +8,33 @@ from search_results import SearchResults
 from graph import Graph
 
 
-@route('/api/find-path/<latitude>/<longitude>')
-def generate_path(latitude, longitude):
+@route('/api/find-path/<latitude>/<longitude>/<number_of_runs>')
+def generate_path(latitude, longitude, number_of_runs):
+
+    # Validate user input
+    try:
+
+        # Check if values are the correct type
+        latitude = float(latitude)
+        longitude = float(longitude)
+        number_of_runs = int(number_of_runs)
+
+        # Check if latitude is in range
+        if (latitude < -90 or latitude > 90):
+            raise ValueError
+
+        # Check if longitude is in range
+        if (longitude < -180 or longitude > 180):
+            raise ValueError
+
+        # Check if number_of_runs is range
+        if (number_of_runs < 0 or number_of_runs > 20):
+            raise ValueError
+
+    except ValueError:
+        temp_result = SearchResults()
+        temp_result.reset()
+        return temp_result.return_in_json()
 
     # convert to float
     latitude = float(latitude)
@@ -19,10 +44,10 @@ def generate_path(latitude, longitude):
     unique_id = uuid.uuid4().hex[:12]
 
     # create graph object
-    graph = Graph('beer.db', home_id=unique_id)
+    graph = Graph('beer.db', home_id=unique_id, weight=0.504597714410906)
 
     # find path
-    result = graph.genetic_near_neighbour(20, latitude, longitude)
+    result = graph.genetic_near_neighbour(number_of_runs, latitude, longitude)
 
     # return result in json
     return result.return_in_json()

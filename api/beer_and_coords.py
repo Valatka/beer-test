@@ -7,7 +7,7 @@ class BeerAndCoords:
 
         # Creates the deep copy of the beer array
         self.beer = copy.deepcopy(beer)
-        
+
         self.latitude = latitude
         self.longitude = longitude
 

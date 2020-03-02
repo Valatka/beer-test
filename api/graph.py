@@ -307,11 +307,6 @@ class Graph:
         """
         Find the closest neighbour that wasn't already visited
 
-        >>> graph = Graph('')
-        >>> graph.reset()
-        >>> min_neighbour = graph.find_min_neighbour([Connection('2', 3), Connection('123', 7.89), Connection('3', 0.1)], ['3', '14'])
-        >>> min_neighbour.brewery_id
-        '2'
         """
 
         min_distance = self.maximum_distance+1
@@ -322,10 +317,11 @@ class Graph:
             neighbour_node = self.database(neighbour.brewery_id).is_node(list)[0]
 
             # Check if neighbour is closer than the previous ones and is not already visited and apply the weight
+
             if (neighbour.length - len(neighbour_node.beer) * self.weight < min_distance and neighbour.brewery_id not in visited):
 
-                #Store it
-                min_distance = neighbour.length
+                # Store it
+                min_distance = neighbour.length - len(neighbour_node.beer) * self.weight
                 min_neighbour = neighbour
 
         return min_neighbour
@@ -414,7 +410,7 @@ class Graph:
             results[-1].distance.append(self.check_distance_to_home(results[-1].factories[-1]))
             return self.find_max_result(results)
 
-        # Find the closest neighbourcd
+        # Find the closest neighbour
         min_neighbour = self.find_min_neighbour(neighbours, visited)
 
         # If it doesn't exist, return
@@ -426,7 +422,7 @@ class Graph:
 
         # Retrieve Brewery object from the database
         min_neighbour = self.database(min_neighbour.brewery_id).is_node(list)[0]
-
+        
         if (distance + distance_neighbour + self.check_distance_to_home(min_neighbour) > self.maximum_distance * 2):
             results.append(copy.deepcopy(results[-1]))
             results[-2].distance.append(self.check_distance_to_home(results[-2].factories[-1]))
@@ -437,7 +433,7 @@ class Graph:
         # Save data into results
         results[-1].distance.append(distance_neighbour)
         results[-1].factories.append(min_neighbour)
-        results[-1].beer = results[-1].beer + min_neighbour.beer
+        results[-1].beer |= set(min_neighbour.beer)
 
         result = self.nearest_neighbour(min_neighbour.brewery_id, distance, visited, results)
         
