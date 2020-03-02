@@ -28,6 +28,6 @@ def generate_path(latitude, longitude):
     return result.return_in_json()
 
 if __name__ == '__main__':
-	run(host='localhost', port=4000, debug=False)
+	run(host='localhost', port=5000, debug=False)
 else:
 	app = application = default_app()

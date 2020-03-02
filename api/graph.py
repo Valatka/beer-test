@@ -1,5 +1,7 @@
 import math
 import sys
+import copy
+import csv
 
 from graphdb import GraphDB
 
@@ -18,6 +20,7 @@ class Graph:
         self.precalculated_distance = precalculated_distance
         self.maximum_distance = maximum_distance
         self.home_id = home_id
+
     def reset(self):
 
         """
@@ -35,6 +38,7 @@ class Graph:
         self.maximum_distance = 1000
 
     def calculate_distance(self, lat1, lon1, lat2, lon2):
+
         """
         >>> Graph.calculate_distance(Graph, 51, 12, 58, 3)
         969.648
@@ -67,65 +71,56 @@ class Graph:
         beer_and_coords = {}
         breweries = []
 
-        # Read beers.csv file
-        with open('./data/beers.csv', encoding='utf8') as beer_data:
-            line = beer_data.readline()
-            while (len(line) > 0):
-                line = line.split(',')
-
-                # Check if no data is missing
-                if (len(line) >= 3):
-
-                    """
-                    Create a new BeerAndCoords object if it donesn't exist
-                    Store beer name in it 
-                    Hash it by the brewery id
-                    """
-                    if line[1] in beer_and_coords:
-                        beer_and_coords[line[1]].beer.append(line[2])
-                    else:
-                        beer_and_coords[line[1]] = BeerAndCoords([line[2]])
-
-                line = beer_data.readline()
-
         # Read geocodes.csv file
         with open('./data/geocodes.csv', encoding='utf8') as coord_data:
-            line = coord_data.readline()
-            while (len(line) > 0):
-                line = line.split(',')
+            csv_reader = csv.reader(coord_data, delimiter=',')
+            for row in csv_reader:
 
                 """
                 Check if no data is missing 
                 Check BeerAndCoords object is hashed in the beer_and_coords dictionary by brewery id
                 """
-                if (len(line) >= 4 and line[1] in beer_and_coords):
+                if (len(row) >= 4):
 
                     # Select BeerAndCoords object by brewery id and set the cordinates
-                    beer_and_coords[line[1]].set_coords(line[2], line[3])
-                line = coord_data.readline()
+                    beer_and_coords[row[1]] = BeerAndCoords(latitude=row[2], longitude=row[3])
+
+        # Read beers.csv file
+        with open('./data/beers.csv', encoding='utf8') as beer_data:
+            csv_reader = csv.reader(beer_data, delimiter=',')
+            for row in csv_reader:
+
+                # Check if no data is missing
+                if (len(row) >= 3):
+
+                    """
+                    Create a new BeerAndCoords object if it doesn't exist
+                    Store beer name in it 
+                    Hash it by the brewery id
+                    """
+                    if row[1] in beer_and_coords:
+                        beer_and_coords[row[1]].beer.append(row[2])
 
         # Read breweries.csv file
         with open('./data/breweries.csv', encoding='utf8') as brewery_data:
-            line = brewery_data.readline()
-            while (len(line) > 0):
-                line = line.split(',')
+            csv_reader = csv.reader(brewery_data, delimiter=',')
+            for row in csv_reader:
 
                 """
                 Check if no data is missing
                 Check BeerAndCoords object is hashed in the beer_and_coords dictionary by brewery id
                 Latitude is set
                 """
-                if (len(line) >= 2 and line[0] in beer_and_coords and beer_and_coords[line[0]].latitude != ""):
+                if (len(row) >= 2 and row[0] in beer_and_coords and beer_and_coords[row[0]].latitude != ""):
 
                     # Retrieve BeerAndCoords object by brewery id
-                    temp_beer_and_coords = beer_and_coords[line[0]]
+                    temp_beer_and_coords = beer_and_coords[row[0]]
 
                     # Initialise temporary Brewery object
-                    temp_brewery = Brewery(line[1], line[0], temp_beer_and_coords.beer, float(temp_beer_and_coords.latitude), float(temp_beer_and_coords.longitude))
+                    temp_brewery = Brewery(row[1], row[0], temp_beer_and_coords.beer, float(temp_beer_and_coords.latitude), float(temp_beer_and_coords.longitude))
 
                     # Append to all breweries
                     breweries.append(temp_brewery)
-                line = brewery_data.readline()
 
         self.nodes = breweries
 
@@ -350,7 +345,21 @@ class Graph:
 
         return self.calculate_distance(node_to_check.latitude, node_to_check.longitude, home_node.latitude, home_node.longitude)
 
-    def nearest_neighbour(self, node_id, distance, visited, result):
+    def find_max_result(self, results):
+        maximum_distance = 0
+        max_result = 0
+
+        for i in range(len(results)):
+            distance_sum = sum(results[i].distance)
+            
+            if (distance_sum <= self.maximum_distance * 2 and distance_sum > maximum_distance):
+                maximum_distance = distance_sum
+                max_result = i
+
+        return results[max_result]
+
+
+    def nearest_neighbour(self, node_id, distance, visited, results):
 
         """
         Generates the path using the neares neighboar algorithm
@@ -365,11 +374,15 @@ class Graph:
         >>> graph.store_graph()
         >>> graph.insert_home(35, 2)
         >>> result = SearchResults()
-        >>> result = graph.nearest_neighbour(graph.home_id, 0, [], result)
+        >>> result = graph.nearest_neighbour(graph.home_id, 0, [], [result])
         >>> result.return_in_json()
-        '{"breweries": [{"name": "", "id": "1", "lat": 34, "long": 2}, {"name": "", "id": "3", "lat": 31, "long": 10}], "beer": [], "distance": [0, 111.195, 820.731]}'
+        '{"breweries": [{"name": "", "id": "1", "lat": 34, "long": 2}, {"name": "", "id": "3", "lat": 31, "long": 10}], "beer": [], "distance": [0, 111.195, 820.731, 868.121]}'
         >>> graph.database._destroy()
         """
+
+        if (distance >= self.maximum_distance * 2):
+            results[-1].distance.append(self.check_distance_to_home(results[-1].factories[-1]))
+            return self.find_max_result(results)
 
         # Add node to the visited list
         visited.append(node_id)
@@ -380,31 +393,35 @@ class Graph:
         
         # If no neighbours, return
         if (len(neighbours) == 0):
-            return result
+            results[-1].distance.append(self.check_distance_to_home(results[-1].factories[-1]))
+            return self.find_max_result(results)
 
-        # Find the closest neighbour
+        # Find the closest neighbourcd
         min_neighbour = self.find_min_neighbour(neighbours, visited)
 
         # If it doesn't exist, return
         if (min_neighbour == -1):
-            return result
+            results[-1].distance.append(self.check_distance_to_home(results[-1].factories[-1]))
+            return self.find_max_result(results)
 
         distance_neighbour = min_neighbour.length
 
         # Retrieve Brewery object from the database
         min_neighbour = self.database(min_neighbour.brewery_id).is_node(list)[0]
 
-        if (distance + distance_neighbour + self.check_distance_to_home(min_neighbour) <= self.maximum_distance * 2):
+        if (distance + distance_neighbour + self.check_distance_to_home(min_neighbour) > self.maximum_distance * 2):
+            results.append(copy.deepcopy(results[-1]))
+            results[-2].distance.append(self.check_distance_to_home(results[-2].factories[-1]))
 
-            # Update distance
-            distance += distance_neighbour
+        # Update distance
+        distance += distance_neighbour
 
-            # Save data into results
-            result.distance.append(distance_neighbour)
-            result.factories.append(min_neighbour)
-            result.beer = result.beer + min_neighbour.beer
+        # Save data into results
+        results[-1].distance.append(distance_neighbour)
+        results[-1].factories.append(min_neighbour)
+        results[-1].beer = results[-1].beer + min_neighbour.beer
 
-            result = self.nearest_neighbour(min_neighbour.brewery_id, distance, visited, result)
+        result = self.nearest_neighbour(min_neighbour.brewery_id, distance, visited, results)
         
         return result
     
@@ -426,16 +443,13 @@ class Graph:
         result.factories.append(home_node)
         
         # Find path using nearest neighbour algorithm
-        result = self.nearest_neighbour(self.home_id, 0, [], result)
+        result = self.nearest_neighbour(self.home_id, 0, [], [result])
 
         # Retrieve last brewery
         last_node = result.factories[-1]
 
         # Append home node to the back
         result.factories.append(home_node)
-
-        # Calculate the distance between home and the last node and append it
-        result.distance.append(self.calculate_distance(latitude, longitude, last_node.latitude, last_node.longitude))
 
         # Remove home node and it's connections
         self.remove_home()
