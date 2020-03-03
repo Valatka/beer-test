@@ -19,3 +19,5 @@ It is going to start a local server listening on port 80
 ## Usage
 - Input the latitude and longitude of the starting position
 - Input the amuont of times the genetic algorithm will run
+
+**Note:** make sure the amount of times isn't too high or the request can time out
