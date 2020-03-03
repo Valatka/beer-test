@@ -14,7 +14,7 @@ Fronend:
 
 ## How to run
 In the home directory execute ```docker-compose up```
-It is going to start a local server listening at port 80
+It is going to start a local server listening on port 80 for nginx
 
 ## Usage
 - Input the latitude and longitude of the starting position
