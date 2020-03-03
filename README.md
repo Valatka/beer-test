@@ -13,7 +13,7 @@ Fronend:
     - bootstrap
 
 ## How to run
-In the home directory execute ```docker-compose up```
+In the home directory execute ```docker-compose up --build```
 It is going to start a local server listening on port 80
 
 ## Usage
