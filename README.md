@@ -1,19 +1,19 @@
 # Beer test
 
 ## About
-It's a solution to [Satalia's beer test](https://satalia.lt/beer-test) problem using nearest neigbour algorithm and genetic algorithm
+It's a solution to [Satalia's beer test](https://satalia.lt/beer-test) problem using nearest neigbour algorithm and extremely simplified genetic algorithm
 
 Backend:
  - python
     - bottle
     - graphdb
 
-Fronend:
+Frontend:
  - react.js
     - bootstrap
 
 ## How to run
-In the home directory execute ```docker-compose up --build```
+In the home directory execute ```npm install && docker-compose up --build```
 It is going to start a local server listening on port 80
 
 ## Usage
