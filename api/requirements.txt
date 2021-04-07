@@ -1,4 +1,4 @@
-bottle==0.12.18
+bottle==0.12.19
 dill==0.3.1.1
 generators==2020.2.4
 graphdb==2020.2.4
