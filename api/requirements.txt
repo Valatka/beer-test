@@ -3,4 +3,4 @@ dill==0.3.1.1
 generators==2020.2.4
 graphdb==2020.2.4
 strict-functions==2020.2.4
-uWSGI==2.0.18
+uWSGI==2.0.22
